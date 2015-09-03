@@ -36,16 +36,13 @@ main: {
         $right_fq = "<(zcat $right_fq)";
     }
     
-    my $cmd = "bash -c \"shuffleSequences_fastq.pl $left_fq $right_fq shuffled.fq\" ";
-    $pipeliner->add_commands( new Command($cmd, "shuffled.fq.ok"));
-
-    $cmd = "velveth ./DS_oases_out 25 -fastq -shortPaired shuffled.fq";
+    my $cmd = "bash -c \"velveth ./DS_oases_out 25 -fastq -separate $left_fq $right_fq\" ";
     $pipeliner->add_commands( new Command($cmd, "velveth.ok"));
 
-    $cmd = "velvetg ./DS_oases_out -ins_length 300 -read_trkg yes";
+    $cmd = "velvetg ./DS_oases_out -read_trkg yes";
     $pipeliner->add_commands( new Command($cmd, "velvetg.ok"));
 
-    $cmd = "oases ./DS_oases_out -ins_length 300 -min_trans_lgth 100";
+    $cmd = "oases ./DS_oases_out -min_trans_lgth 100";
     $pipeliner->add_commands( new Command($cmd, "oases.ok"));
     
 
