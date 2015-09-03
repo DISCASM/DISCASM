@@ -1,0 +1,196 @@
+#!/usr/bin/env python
+
+import sciedpiper.Command as Command
+import os, re, sys
+import sciedpiper.ParentScript as ParentScript
+
+
+UTILDIR = os.path.abspath(os.sep.join([os.path.dirname(__file__), "util"]))
+
+TRINITY_HOME = os.path.abspath(os.path.dirname(__file__) + "/../trinityrnaseq")
+
+
+'''
+if not os.environ.has_key('STAR_FUSION_DIR'):
+    print >> sys.stderr, "Error, need STAR_FUSION_DIR env var set to STAR-Fusion installation directory"
+    sys.exit(3)
+'''
+
+
+MAX_PCT_ALIGNED_OK = 80        
+
+
+class DiscordAFuse( ParentScript.ParentScript ):
+    
+    def func_update_arguments(self, arg_raw ):
+        """
+        Updates to the arg parser, command line options
+        
+        * arg_raw : Arguments ( not yet parsed )
+                  : Arguments
+        * return  : Updated Arguments
+                  : Arguments
+        """
+
+        arg_raw.prog = "DiscordAFuse"
+        arg_raw.description = "extracts genome-aligned discordant and unmapped reads, de novo assembles them, and then identifies evidence for potential fusions."
+
+        arg_raw.add_argument("--chimeric_junctions", dest="chimeric_junctions", required=True, help="STAR Chimeric.out.junction file")
+        arg_raw.add_argument("--aligned_bam", dest="aligned_bam_filename", required=False, help="aligned bam file from your favorite rna-seq alignment tool")
+        arg_raw.add_argument("--left_fq", dest="left_fq_filename", required=True, help="left fastq file")
+        arg_raw.add_argument("--right_fq", dest="right_fq_filename", required=True, help="right fastq file")
+        arg_raw.add_argument("--out_dir", dest="out_dirname", required=True, help="output directory")
+        arg_raw.add_argument("--denovo_assembler", dest="denovo_assembler", required=True, help="de novo assembly method: Trinity|Oases|OasesMultiK")
+
+        
+
+    def func_make_commands( self, args_parsed, cur_pipeline ):
+        
+        """
+        Allows:
+        - the creation of commands in the child object.
+        - the creation of directories.
+        - checking that files exist.
+        
+        To know the variables available from command line look in the ParentScript in func_create_arguments.
+        """
+
+        args = args_parsed
+
+        aligned_bam_filename = None
+        if args_parsed.aligned_bam_filename:
+            aligned_bam_filename = args_parsed.aligned_bam_filename
+            aligned_bam_filename = ensure_full_path(aligned_bam_filename)
+        
+        chimeric_junctions_filename = ensure_full_path(args.chimeric_junctions)
+        left_fq_filename = ensure_full_path(args.left_fq_filename)
+        right_fq_filename = ensure_full_path(args.right_fq_filename)
+
+        denovo_assembler = args.denovo_assembler
+
+        if not re.search("(trinity|oases)", denovo_assembler, re.I):
+            raise Exception("Error, assembler: " + denovo_assembler + " is not recognized. Only 'Trinity' and 'Oases' are currently supported.")
+        
+        
+        out_dirname = ensure_full_path(args_parsed.out_dirname)
+        
+        cur_pipeline.func_mkdirs( [ out_dirname] )
+
+        check_files_list = [ chimeric_junctions_filename, left_fq_filename, right_fq_filename]
+        if aligned_bam_filename:
+            check_files_list.append(aligned_bam_filename)
+        
+        cur_pipeline.func_check_files_exist(check_files_list)
+        
+        
+        # relocate to the output directory
+        os.chdir(out_dirname)
+        
+
+        ## Extract the discordant and unmapped reads into fastq files
+        
+        lcmd_commands = []
+
+        if aligned_bam_filename:
+
+            ## Using both the Chimeric reads and those reads that failed to map to the genome.
+
+            cmdstr = str( os.sep.join([UTILDIR, "retrieve_SF_chimeric_and_unmapped_reads.py"]) +
+                          " " + aligned_bam_filename +
+                          " " + chimeric_junctions_filename + 
+                          " " + left_fq_filename + " " + right_fq_filename )
+
+            discordant_left_fq_filename = os.path.basename(left_fq_filename) + ".extracted.fq"
+            discordant_right_fq_filename = os.path.basename(right_fq_filename) + ".extracted.fq"
+
+
+            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
+                                                  lstr_cur_dependencies = [ aligned_bam_filename, left_fq_filename, right_fq_filename ],
+                                                  lstr_cur_products = [discordant_left_fq_filename, discordant_right_fq_filename] ) )
+            
+        else:
+
+            ## Just the chimeric reads as per STAR
+            
+            cmdstr = str( os.sep.join([UTILDIR, "retrieve_SF_chimeric_reads.py"]) +
+                          " " + chimeric_junctions_filename +
+                          " " + left_fq_filename + " " + right_fq_filename )
+            
+            discordant_left_fq_filename = os.path.basename(left_fq_filename) + ".extracted.fq"
+            discordant_right_fq_filename = os.path.basename(right_fq_filename) + ".extracted.fq"
+
+
+            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
+                                                  lstr_cur_dependencies = [ chimeric_junctions_filename, left_fq_filename, right_fq_filename ],
+                                                  lstr_cur_products = [discordant_left_fq_filename, discordant_right_fq_filename] ) )
+
+        ## De novo assemble the extracted reads
+
+        assembled_transcripts_filename = None
+
+        if re.match("trinity", denovo_assembler, re.I):
+
+            cmdstr = str(TRINITY_HOME + "/Trinity --seqType fq --max_memory 10G " +
+                         " --left " + discordant_left_fq_filename +
+                         " --right " + discordant_right_fq_filename +
+                         " --CPU 4 --full_cleanup --output trinity_out_dir " +
+                         " --min_contig_length 100")
+            
+            assembled_transcripts_filename = "trinity_out_dir.Trinity.fasta"
+
+            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
+                                                  lstr_cur_dependencies = [discordant_left_fq_filename, discordant_right_fq_filename],
+                                                  lstr_cur_products = [assembled_transcripts_filename ] ) )
+            
+
+
+        elif re.match("oasesmultik", denovo_assembler, re.I):
+            # run Oases multi-K   (Jaffa-style)
+            cmdstr = str(UTILDIR + "/run_OASES_multiK.pl --left_fq " + discordant_left_fq_filename +
+                         " --right_fq " + discordant_right_fq_filename +
+                         " -K 19,23,27,31 -M 21 -L 100 " +
+                         " -O oasesMultiK_out_dir ")
+
+            assembled_transcripts_filename = "oasesMultiK_out_dir/oases.transcripts.fa"
+
+            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
+                                                  lstr_cur_dependencies = [discordant_left_fq_filename, discordant_right_fq_filename],
+                                                  lstr_cur_products = [assembled_transcripts_filename] ) )
+
+            
+            
+
+        else:
+            # oases
+
+            cmdstr = str(UTILDIR + "/run_OASES.pl " + discordant_left_fq_filename +
+                         " "  + discordant_right_fq_filename + " oases_out_dir ")
+
+            assembled_transcripts_filename = "oases_out_dir/oases.transcripts.fa"
+
+            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
+                                                  lstr_cur_dependencies = [discordant_left_fq_filename, discordant_right_fq_filename],
+                                                  lstr_cur_products = [assembled_transcripts_filename] ) )
+        
+
+
+        
+        return lcmd_commands
+
+
+
+
+def ensure_full_path(file_or_dir):
+
+    if file_or_dir[0] != '/' :
+        file_or_dir = os.getcwd() + "/" + file_or_dir
+
+    return(file_or_dir)
+
+                          
+    
+if __name__ == "__main__":
+
+    # Needed to run, calls the script
+    DiscordAFuse().func_run_pipeline()
+
