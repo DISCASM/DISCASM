@@ -148,7 +148,7 @@ class DiscordAFuse( ParentScript.ParentScript ):
             # run Oases multi-K   (Jaffa-style)
             cmdstr = str(UTILDIR + "/run_OASES_multiK.pl --left_fq " + discordant_left_fq_filename +
                          " --right_fq " + discordant_right_fq_filename +
-                         " -K 19,23,27,31 -M 21 -L 100 " +
+                         " -K 19,23,27,31,35 -M 27 -L 100 " +
                          " -O oasesMultiK_out_dir ")
 
             assembled_transcripts_filename = "oasesMultiK_out_dir/oases.transcripts.fa"
