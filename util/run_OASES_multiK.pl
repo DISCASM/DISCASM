@@ -17,7 +17,7 @@ my $usage = <<__EOUSAGE__;
 #  --left_fq <string>    left fastq filename
 #  --right_fq <string>   right fastq filename
 #
-#  --kmers|K <string>      comma-delimited list of kmers to use, ie. "19,23,27,31"
+#  --kmers|K <string>      low,high,step (ie. 19,36,4)
 #  --mergeK|M <int>        kmer to perform multi-K assembly merging with.
 #
 #  --min_length|L <int>    minimum contig length to report.
@@ -37,7 +37,7 @@ __EOUSAGE__
 my $help_flag;
 my $left_fq;
 my $right_fq;
-my $kmers;
+my $low_high_step;
 my $min_length;
 my $output_dir;
 my $mergeK;
@@ -46,7 +46,7 @@ my $no_clean_flag = 0;
 &GetOptions ( 'h' => \$help_flag,
               'left_fq=s' => \$left_fq,
               'right_fq=s' => \$right_fq,
-              'kmers|K=s' => \$kmers,
+              'kmers|K=s' => \$low_high_step,
               'mergeK|M=i' => \$mergeK,
               'min_length|L=s' => \$min_length,
               'out_dir|O=s' => \$output_dir,
@@ -58,20 +58,22 @@ if ($help_flag) {
     die $usage;
 }
 
-unless ($left_fq && $right_fq && $kmers && $mergeK && $min_length && $output_dir) {
+unless ($left_fq && $right_fq && $low_high_step && $mergeK && $min_length && $output_dir) {
     die $usage;
 }
 
-my @kmer_vals = split(/,/, $kmers);
-foreach my $k (@kmer_vals) {
-    $k =~ s/\s//g;
-    unless ($k =~ /^\d+$/) {
-        die "Error, kmer value ($k) isn't recognized as a number.  --kmers set to $kmers";
-    }
+
+my @kmer_vals;
+my ($low, $high, $step) = split(/,/, $low_high_step);
+unless ($low < $high) {
+    die "Error, $low_high_step low and high out of order";
 }
-
-
-
+for (my $k = $low; $k <= $high; $k+= $step) {
+    push (@kmer_vals, $k);
+}
+unless (@kmer_vals) {
+    die "Error - no kmer values based on $low_high_step";
+}
 
 main: {
     
@@ -86,24 +88,20 @@ main: {
     
     my $pipeliner = new Pipeliner(-verbose => 1);
 
-    if ($left_fq =~ /\.gz$/) {
-        $left_fq = "<(zcat $left_fq)";
-    }
-
-    if ($right_fq =~ /\.gz$/) {
-        $right_fq = "<(zcat $right_fq)";
-    }
-    
-
     my @kmer_assemblies;
     my @dirs_to_cleanup;
     my @checkpoints_to_cleanup;
     
+    my $cmd = "velveth oasesK $low_high_step -fastq -separate $left_fq $right_fq";
+    $pipeliner->add_commands(new Command($cmd, "setup.ok"));
+
     foreach my $kmer (@kmer_vals) {
         
-        my $cmd = "bash -c \"velveth oasesK_$kmer $kmer -fastq -separate $left_fq $right_fq\"";
-        $pipeliner->add_commands(new Command($cmd, "oasesK_${kmer}.prep.ok"));
-        push (@checkpoints_to_cleanup, "oasesK_${kmer}.prep.ok");
+        ## why does separate setups produce different assemblies?
+
+        #my $cmd = "bash -c \"velveth oasesK_$kmer $kmer -fastq -separate $left_fq $right_fq\"";
+        #$pipeliner->add_commands(new Command($cmd, "oasesK_${kmer}.prep.ok"));
+        #push (@checkpoints_to_cleanup, "oasesK_${kmer}.prep.ok");
 
         $cmd = "velvetg oasesK_$kmer -read_trkg yes";
         $pipeliner->add_commands(new Command($cmd, "velvetg.$kmer.ok"));
@@ -119,7 +117,7 @@ main: {
     }
     
     ## merge the kmer assemblies:
-    my $cmd = "velveth mergedAsm $mergeK -long " . join(" ", @kmer_assemblies);
+    $cmd = "velveth mergedAsm $mergeK -long " . join(" ", @kmer_assemblies);
     $pipeliner->add_commands(new Command($cmd, "mergedAsm.velveth.ok"));
     push (@checkpoints_to_cleanup, "mergedAsm.velveth.ok");
 
