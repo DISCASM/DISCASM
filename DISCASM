@@ -33,7 +33,7 @@ class DiscordAFuse( ParentScript.ParentScript ):
         """
 
         arg_raw.prog = "DiscordAFuse"
-        arg_raw.description = "extracts genome-aligned discordant and unmapped reads, de novo assembles them, and then identifies evidence for potential fusions."
+        arg_raw.description = "extracts genome-aligned discordant and unmapped reads, and de novo assembles them"
 
         arg_raw.add_argument("--chimeric_junctions", dest="chimeric_junctions", required=True, help="STAR Chimeric.out.junction file")
         arg_raw.add_argument("--aligned_bam", dest="aligned_bam_filename", required=False, help="aligned bam file from your favorite rna-seq alignment tool")
