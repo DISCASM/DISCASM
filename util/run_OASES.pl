@@ -50,7 +50,7 @@ main: {
 
     ## cleanup
     rename("DS_oases_out/transcripts.fa", "oases.transcripts.fa");
-    
+    unlink("shuffled.fq");
     `rm -rf ./DS_oases_out/`;
     
 
