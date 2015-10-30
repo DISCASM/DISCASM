@@ -1,21 +1,12 @@
 #!/usr/bin/env python
 
-import sciedpiper.Command as Command
 import os, re, sys
+sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
+import sciedpiper.Command as Command
 import sciedpiper.ParentScript as ParentScript
-
+import subprocess
 
 UTILDIR = os.path.abspath(os.sep.join([os.path.dirname(__file__), "util"]))
-
-TRINITY_HOME = os.path.abspath(os.path.dirname(__file__) + "/../trinityrnaseq")
-
-
-'''
-if not os.environ.has_key('STAR_FUSION_DIR'):
-    print >> sys.stderr, "Error, need STAR_FUSION_DIR env var set to STAR-Fusion installation directory"
-    sys.exit(3)
-'''
-
 
 MAX_PCT_ALIGNED_OK = 80        
 
@@ -71,7 +62,8 @@ class DiscordAFuse( ParentScript.ParentScript ):
         if not re.search("(trinity|oases)", denovo_assembler, re.I):
             raise Exception("Error, assembler: " + denovo_assembler + " is not recognized. Only 'Trinity' and 'Oases' are currently supported.")
         
-        
+        ensure_locate_progs(denovo_assembler)
+                
         out_dirname = ensure_full_path(args_parsed.out_dirname)
         
         cur_pipeline.func_mkdirs( [ out_dirname] )
@@ -130,7 +122,7 @@ class DiscordAFuse( ParentScript.ParentScript ):
 
         if re.match("trinity", denovo_assembler, re.I):
 
-            cmdstr = str(TRINITY_HOME + "/Trinity --seqType fq --max_memory 10G " +
+            cmdstr = str("Trinity --seqType fq --max_memory 10G " +
                          " --left " + discordant_left_fq_filename +
                          " --right " + discordant_right_fq_filename +
                          " --CPU 4 --full_cleanup --output trinity_out_dir " +
@@ -186,6 +178,30 @@ def ensure_full_path(file_or_dir):
         file_or_dir = os.getcwd() + "/" + file_or_dir
 
     return(file_or_dir)
+
+
+def ensure_locate_progs(assembler_name):
+
+    progs = []
+    if (re.search("trinity", assembler_name, re.I)):
+        progs.append('Trinity')
+    elif (re.search("oases", assembler_name, re.I)):
+        progs += ['oases', 'velvetg', 'velveth']
+
+    missing_prog = False
+    for prog in progs:
+        try:
+            path = subprocess.check_output("which " + prog, shell=True)
+            print >>sys.stderr, "Found prog: " + prog + " at path: " + path
+        except Exception as e:
+            print >>sys.stderr, "Error, cannot locate required program: " + prog
+            missing_prog = True
+
+    if missing_prog:
+        raise Exception("Error, missing at least one required program available via PATH setting")
+
+    return
+                        
 
                           
     
