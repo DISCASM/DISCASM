@@ -11,7 +11,7 @@ UTILDIR = os.path.abspath(os.sep.join([os.path.dirname(__file__), "util"]))
 MAX_PCT_ALIGNED_OK = 80        
 
 
-class DiscordAFuse( ParentScript.ParentScript ):
+class DISCASM( ParentScript.ParentScript ):
     
     def func_update_arguments(self, arg_raw ):
         """
@@ -23,7 +23,7 @@ class DiscordAFuse( ParentScript.ParentScript ):
                   : Arguments
         """
 
-        arg_raw.prog = "DiscordAFuse"
+        arg_raw.prog = "DISCASM"
         arg_raw.description = "extracts genome-aligned discordant and unmapped reads, and de novo assembles them"
 
         arg_raw.add_argument("--chimeric_junctions", dest="chimeric_junctions", required=True, help="STAR Chimeric.out.junction file")
@@ -32,7 +32,7 @@ class DiscordAFuse( ParentScript.ParentScript ):
         arg_raw.add_argument("--right_fq", dest="right_fq_filename", required=True, help="right fastq file")
         arg_raw.add_argument("--out_dir", dest="out_dirname", required=True, help="output directory")
         arg_raw.add_argument("--denovo_assembler", dest="denovo_assembler", required=True, help="de novo assembly method: Trinity|Oases|OasesMultiK")
-
+        arg_raw.add_argument("--add_trinity_params", dest="add_trinity_params", required=False, help="any additional parameters to pass on to Trinity if Trinity is the chosen assembler.")
         
 
     def func_make_commands( self, args_parsed, cur_pipeline ):
@@ -127,6 +127,9 @@ class DiscordAFuse( ParentScript.ParentScript ):
                          " --right " + discordant_right_fq_filename +
                          " --CPU 4 --full_cleanup --output trinity_out_dir " +
                          " --min_contig_length 100")
+
+            if (args_parsed.add_trinity_params):
+                cmdstr += " " + args_parsed.add_trinity_params
             
             assembled_transcripts_filename = "trinity_out_dir.Trinity.fasta"
 
@@ -208,5 +211,5 @@ def ensure_locate_progs(assembler_name):
 if __name__ == "__main__":
 
     # Needed to run, calls the script
-    DiscordAFuse().func_run_pipeline()
+    DISCASM().func_run_pipeline()
 
