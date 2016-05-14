@@ -10,6 +10,10 @@ UTILDIR = os.path.abspath(os.sep.join([os.path.dirname(__file__), "util"]))
 
 MAX_PCT_ALIGNED_OK = 80        
 
+if 'TRINITY_HOME' not in os.environ:
+    raise RuntimeException("must set TRINITY_HOME env var")
+TRINITY_HOME = os.environ['TRINITY_HOME']
+
 
 class DISCASM( ParentScript.ParentScript ):
     
@@ -33,6 +37,8 @@ class DISCASM( ParentScript.ParentScript ):
         arg_raw.add_argument("--out_dir", dest="out_dirname", required=True, help="output directory")
         arg_raw.add_argument("--denovo_assembler", dest="denovo_assembler", required=True, help="de novo assembly method: Trinity|Oases|OasesMultiK")
         arg_raw.add_argument("--add_trinity_params", dest="add_trinity_params", required=False, help="any additional parameters to pass on to Trinity if Trinity is the chosen assembler.")
+        arg_raw.add_argument("--normalize_reads", default=False, action='store_true', help='perform in silico normalization prior to de novo assembly')
+        
         
 
     def func_make_commands( self, args_parsed, cur_pipeline ):
@@ -116,7 +122,28 @@ class DISCASM( ParentScript.ParentScript ):
                                                   lstr_cur_dependencies = [ chimeric_junctions_filename, left_fq_filename, right_fq_filename ],
                                                   lstr_cur_products = [discordant_left_fq_filename, discordant_right_fq_filename] ) )
 
+
+        if args_parsed.normalize_reads:
+            cmdstr = str(os.path.sep.join([TRINITY_HOME, "util", "insilico_read_normalization.pl"]) +
+                         " --left " + discordant_left_fq_filename +
+                         " --right " + discordant_right_fq_filename +
+                         " --seqType fq --JM 20G --max_cov 50 ")
+
+            normalized_left_fq_filename = discordant_left_fq_filename + ".normalized_K25_C50_pctSD200.fq"
+            normalized_right_fq_filename = discordant_right_fq_filename + ".normalized_K25_C50_pctSD200.fq"
+            
+            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
+                                                  lstr_cur_dependencies = [ discordant_left_fq_filename,
+                                                                            discordant_right_fq_filename ],
+                                                  lstr_cur_products = [ normalized_left_fq_filename,
+                                                                        normalized_right_fq_filename ] ) )
+
+            discordant_left_fq_filename = normalized_left_fq_filename
+            discordant_right_fq_filename = normalized_right_fq_filename
+
         ## De novo assemble the extracted reads
+
+        
 
         assembled_transcripts_filename = None
 
