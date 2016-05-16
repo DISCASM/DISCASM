@@ -56,12 +56,11 @@ class DISCASM( ParentScript.ParentScript ):
 
         aligned_bam_filename = None
         if args_parsed.aligned_bam_filename:
-            aligned_bam_filename = args_parsed.aligned_bam_filename
-            aligned_bam_filename = aligned_bam_filename
+            aligned_bam_filename = os.path.abspath(args_parsed.aligned_bam_filename)
         
-        chimeric_junctions_filename = args.chimeric_junctions
-        left_fq_filename = args.left_fq_filename
-        right_fq_filename = args.right_fq_filename
+        chimeric_junctions_filename = os.path.abspath(args.chimeric_junctions)
+        left_fq_filename = os.path.abspath(args.left_fq_filename)
+        right_fq_filename = os.path.abspath(args.right_fq_filename)
 
         denovo_assembler = args.denovo_assembler
 
@@ -69,7 +68,8 @@ class DISCASM( ParentScript.ParentScript ):
             raise Exception("Error, assembler: " + denovo_assembler + " is not recognized. Only 'Trinity' and 'Oases' are currently supported.")
         
         ensure_locate_progs(denovo_assembler)
-                
+
+        args_parsed.str_out_dir = os.path.abspath(args_parsed.str_out_dir)
         str_out_dir = args_parsed.str_out_dir
         
         check_files_list = [ chimeric_junctions_filename, left_fq_filename, right_fq_filename]
