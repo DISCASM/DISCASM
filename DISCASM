@@ -71,6 +71,11 @@ class DISCASM( ParentScript.ParentScript ):
 
         args_parsed.str_out_dir = os.path.abspath(args_parsed.str_out_dir)
         str_out_dir = args_parsed.str_out_dir
+
+        if not os.path.isdir(str_out_dir):
+            os.makedirs(str_out_dir)
+        os.chdir(str_out_dir)
+        
         
         check_files_list = [ chimeric_junctions_filename, left_fq_filename, right_fq_filename]
         if aligned_bam_filename:
