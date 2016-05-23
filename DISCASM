@@ -2,8 +2,9 @@
 
 import os, re, sys
 sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
+sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR", "sciedpiper"]))
 import sciedpiper.Command as Command
-import sciedpiper.ParentScript as ParentScript
+import sciedpiper.PipelineRunner as PipelineRunner
 import subprocess
 
 UTILDIR = os.path.abspath(os.sep.join([os.path.dirname(__file__), "util"]))
@@ -15,7 +16,7 @@ if 'TRINITY_HOME' not in os.environ:
 TRINITY_HOME = os.environ['TRINITY_HOME']
 
 
-class DISCASM( ParentScript.ParentScript ):
+class DISCASM( PipelineRunner.PipelineRunner ):
     
     def func_update_arguments(self, arg_raw ):
         """
@@ -38,8 +39,9 @@ class DISCASM( ParentScript.ParentScript ):
         arg_raw.add_argument("--denovo_assembler", dest="denovo_assembler", required=True, help="de novo assembly method: Trinity|Oases|OasesMultiK")
         arg_raw.add_argument("--add_trinity_params", dest="add_trinity_params", required=False, help="any additional parameters to pass on to Trinity if Trinity is the chosen assembler.")
         arg_raw.add_argument("--normalize_reads", default=False, action='store_true', help='perform in silico normalization prior to de novo assembly')
-        
-        
+
+        return(arg_raw)
+    
 
     def func_make_commands( self, args_parsed, cur_pipeline ):
         
