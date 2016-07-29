@@ -1,1 +1,11 @@
+# version 0.1.1 (July 29, 2016)
+uses TRINITY_HOME env var to find all things Trinity related, including Trinity itself.
+
+
+# version 0.1.0 (July 25, 2016)
+upgraded SciedPiper
 added --normalize_reads option
+
+
+# version 0.0.1 (October 30, 2015)
+initial release
