@@ -1,3 +1,7 @@
+# version 0.1.2  (Oct, 23, 2017)
+if TRINITY_HOME env var isn't set, it defines it based on where Trinity is found assuming Trinity is in the PATH setting.  (updates from Cicada)
+
+
 # version 0.1.1 (July 29, 2016)
 uses TRINITY_HOME env var to find all things Trinity related, including Trinity itself.
 
