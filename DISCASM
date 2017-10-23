@@ -11,10 +11,63 @@ UTILDIR = os.path.abspath(os.sep.join([os.path.dirname(__file__), "util"]))
 
 MAX_PCT_ALIGNED_OK = 80        
 
-if 'TRINITY_HOME' not in os.environ:
-    raise RuntimeException("must set TRINITY_HOME env var")
-TRINITY_HOME = os.environ['TRINITY_HOME']
+# 2017-10-23
+# Cicada Dennis added code which looks for the location of the Trinity program using the Unix "which" utility.
+# Previous code which is replaced:
+#if 'TRINITY_HOME' not in os.environ:
+#    raise RuntimeError("must set TRINITY_HOME env var")
+#TRINITY_HOME = os.environ['TRINITY_HOME']
+TRINITY_HOME = ""
+TRINITY_HOME_error_msg = "Before running {0}, you must set the environment variable TRINITY_HOME\n".format(sys.argv[0]) + \
+    "\tto the base installation directory of Trinity,\n\tor that directory needs to be in the PATH.\n"
+if 'TRINITY_HOME' in os.environ:
+    TRINITY_HOME = os.environ['TRINITY_HOME']
+else:
+    # if hasattr(os, 'symlink'): # symlink was implemented to always return false when it was not implemented in early python.
+    # Not using symlink. Using os.path.islink() and os.readlink().
+    try:
+        # I tried using "command -v Trinity" but for some reason, I was getting an OS permission error with that.
+        # distutils.spawn.find_executable() also might work, I but already implemented the below.
+        pipe1 = subprocess.Popen(["which", "Trinity"], stdout=subprocess.PIPE)
+    except:
+        sys.stderr.write(TRINITY_HOME_error_msg)
+        # t, v, tb = sys.exc_info()
+        # raise t, v, tb
+        # For some reason the above was giving a syntax error. 
+        # A simple raise should reraise the existing exception.
+        raise
+    else:
+        TrinityPath, err_info = pipe1.communicate()
+        # FIX - probably should be checking err_info for errors...
+        #print "err_info is:"
+        #print err_info
 
+        # Determine TRINITY_HOME from the TrinityPath returned.
+        # If TrinityPath is a link, we need to dereference the link.
+        TrinityPath = TrinityPath.rstrip() # Need to strip off a newline.
+        if len(TrinityPath) > 0:
+            # print "Trinity that was found is: {:s}".format(repr(TrinityPath))
+            # print os.path.islink(TrinityPath)
+            TrinityPath = os.path.abspath(TrinityPath)
+            # msg = "The Absolute Trinity path that was found is: {:s}".format(TrinityPath)
+            # print msg
+            # print os.path.islink(TrinityPath)
+            while os.path.islink(TrinityPath):
+                # print "That path is a link."
+                TrinityPath = os.path.join(os.path.dirname(TrinityPath),os.readlink(TrinityPath))
+                # print "The new path is: {:s}".format(TrinityPath)
+            # Take off the last part of the path (which is the Trinity command)
+            TRINITY_HOME = "/".join(TrinityPath.split("/")[0:-1])
+            os.environ['TRINITY_HOME'] = TRINITY_HOME
+            sys.stdout.write("TRINITY_HOME has been set to: {:s}.\n".format(TRINITY_HOME))
+        # else: # There was no value returned by the which command. So Trinity is not in the PATH.
+        #     Doing nothing leaves TRINITY_HOME as an empty string.
+# end of else no TRINITY_HOME environment variable.
+
+# If TRINITY_HOME didn't get set, it will still be an empty string.
+if TRINITY_HOME == "":
+    sys.stderr.write(TRINITY_HOME_error_msg)
+    raise RuntimeError("must set TRINITY_HOME env var")
 
 class DISCASM( PipelineRunner.PipelineRunner ):
     
@@ -44,7 +97,6 @@ class DISCASM( PipelineRunner.PipelineRunner ):
     
 
     def func_make_commands( self, args_parsed, cur_pipeline ):
-        
         """
         Allows:
         - the creation of commands in the child object.
