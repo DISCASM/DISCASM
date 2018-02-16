@@ -1,11 +1,34 @@
 #!/usr/bin/env python
 
 import os, re, sys
-sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR"]))
-sys.path.append(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "SciEDPipeR", "sciedpiper"]))
-import sciedpiper.Command as Command
-import sciedpiper.PipelineRunner as PipelineRunner
+import argparse
 import subprocess
+
+sys.path.insert(0, os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), "PyLib"]))
+from Pipeliner import Pipeliner, Command
+
+
+
+import logging
+FORMAT = "%(asctime)-15s %(levelname)s %(module)s.%(name)s.%(funcName)s at %(lineno)d :\n\t%(message)s\n"
+global logger
+logger = logging.getLogger()
+logging.basicConfig(filename='FusionInspector.log', format=FORMAT, filemode='w', level=logging.DEBUG)
+# add a new Handler to print all INFO and above messages to stdout
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.INFO)
+logger.addHandler(ch)
+
+"""
+______ _____ _____ _____   ___   ________  ___
+|  _  \_   _/  ___/  __ \ / _ \ /  ___|  \/  |
+| | | | | | \ `--.| /  \// /_\ \\ `--.| .  . |
+| | | | | |  `--. \ |    |  _  | `--. \ |\/| |
+| |/ / _| |_/\__/ / \__/\| | | |/\__/ / |  | |
+|___/  \___/\____/ \____/\_| |_/\____/\_|  |_/
+
+"""
+
 
 UTILDIR = os.path.abspath(os.sep.join([os.path.dirname(__file__), "util"]))
 
@@ -69,57 +92,43 @@ if TRINITY_HOME == "":
     sys.stderr.write(TRINITY_HOME_error_msg)
     raise RuntimeError("must set TRINITY_HOME env var")
 
-class DISCASM( PipelineRunner.PipelineRunner ):
+class DISCASM:
     
-    def func_update_arguments(self, arg_raw ):
-        """
-        Updates to the arg parser, command line options
+    def run(self):
+
+        arg_parser = argparse.ArgumentParser(
+            description = "Performs de novo transcriptome assembly on discordant and unmapped reads"
+            )
         
-        * arg_raw : Arguments ( not yet parsed )
-                  : Arguments
-        * return  : Updated Arguments
-                  : Arguments
-        """
-
-        arg_raw.prog = "DISCASM"
-        arg_raw.description = "extracts genome-aligned discordant and unmapped reads, and de novo assembles them"
-
-        arg_raw.add_argument("--chimeric_junctions", dest="chimeric_junctions", required=True, help="STAR Chimeric.out.junction file")
-        arg_raw.add_argument("--aligned_bam", dest="aligned_bam_filename", required=False, help="aligned bam file from your favorite rna-seq alignment tool")
-        arg_raw.add_argument("--left_fq", dest="left_fq_filename", required=True, help="left fastq file")
-        arg_raw.add_argument("--right_fq", dest="right_fq_filename", required=True, help="right fastq file")
-        arg_raw.add_argument("--out_dir", dest="str_out_dir", required=True, help="output directory")
-        arg_raw.add_argument("--denovo_assembler", dest="denovo_assembler", required=True, help="de novo assembly method: Trinity|Oases|OasesMultiK")
-        arg_raw.add_argument("--add_trinity_params", dest="add_trinity_params", required=False, help="any additional parameters to pass on to Trinity if Trinity is the chosen assembler.")
-        arg_raw.add_argument("--normalize_reads", default=False, action='store_true', help='perform in silico normalization prior to de novo assembly (not needed if using Trinity, since Trinity performs normalization internally')
-
-        return(arg_raw)
-    
-
-    def func_make_commands( self, args_parsed, cur_pipeline ):
-        """
-        Allows:
-        - the creation of commands in the child object.
-        - the creation of directories.
-        - checking that files exist.
+        arg_parser.add_argument("--chimeric_junctions", dest="chimeric_junctions",
+                                required=True, help="STAR Chimeric.out.junction file")
+        arg_parser.add_argument("--aligned_bam", dest="aligned_bam_filename",
+                                required=False, help="aligned bam file from your favorite rna-seq alignment tool")
+        arg_parser.add_argument("--left_fq", dest="left_fq_filename", required=True, help="left fastq file")
+        arg_parser.add_argument("--right_fq", dest="right_fq_filename", required=True, help="right fastq file")
+        arg_parser.add_argument("--out_dir", dest="str_out_dir", required=True, help="output directory")
+        arg_parser.add_argument("--denovo_assembler", dest="denovo_assembler", required=True,
+                                help="de novo assembly method: Trinity|Oases|OasesMultiK")
+        arg_parser.add_argument("--add_trinity_params", dest="add_trinity_params", required=False,
+                                help="any additional parameters to pass on to Trinity if Trinity is the chosen assembler.")
+        arg_parser.add_argument("--normalize_reads", default=False, action='store_true',
+                                help='perform in silico normalization prior to de novo assembly (not needed if using Trinity, since Trinity performs normalization internally')
         
-        To know the variables available from command line look in the ParentScript in func_create_arguments.
-        """
-
-        args = args_parsed
-
+        args_parsed = arg_parser.parse_args()
+        
         aligned_bam_filename = None
         if args_parsed.aligned_bam_filename:
             aligned_bam_filename = os.path.abspath(args_parsed.aligned_bam_filename)
         
-        chimeric_junctions_filename = os.path.abspath(args.chimeric_junctions)
-        left_fq_filename = os.path.abspath(args.left_fq_filename)
-        right_fq_filename = os.path.abspath(args.right_fq_filename)
+        chimeric_junctions_filename = os.path.abspath(args_parsed.chimeric_junctions)
+        left_fq_filename = os.path.abspath(args_parsed.left_fq_filename)
+        right_fq_filename = os.path.abspath(args_parsed.right_fq_filename)
 
-        denovo_assembler = args.denovo_assembler
+        denovo_assembler = args_parsed.denovo_assembler
 
         if not re.search("(trinity|oases)", denovo_assembler, re.I):
-            raise Exception("Error, assembler: " + denovo_assembler + " is not recognized. Only 'Trinity' and 'Oases' are currently supported.")
+            raise Exception("Error, assembler: " + denovo_assembler +
+                            " is not recognized. Only 'Trinity' and 'Oases' are currently supported.")
         
         ensure_locate_progs(denovo_assembler)
 
@@ -135,12 +144,17 @@ class DISCASM( PipelineRunner.PipelineRunner ):
         if aligned_bam_filename:
             check_files_list.append(aligned_bam_filename)
         
-        cur_pipeline.func_check_files_exist(check_files_list)
-        
-        
+                
         ## Extract the discordant and unmapped reads into fastq files
         
-        lcmd_commands = []
+        checkpoints_dir = args_parsed.str_out_dir + "/chckpts_dir"
+        checkpoints_dir = os.path.abspath(checkpoints_dir)
+        if not os.path.exists(checkpoints_dir):
+            os.makedirs(checkpoints_dir)
+
+            
+        ## Construct pipeline
+        pipeliner = Pipeliner(checkpoints_dir)
 
         if aligned_bam_filename:
 
@@ -154,10 +168,8 @@ class DISCASM( PipelineRunner.PipelineRunner ):
             discordant_left_fq_filename = os.path.basename(left_fq_filename) + ".extracted.fq"
             discordant_right_fq_filename = os.path.basename(right_fq_filename) + ".extracted.fq"
 
+            pipeliner.add_commands([Command(cmdstr, "extract_chimeric_unmapped.ok")])
 
-            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
-                                                  lstr_cur_dependencies = [ aligned_bam_filename, left_fq_filename, right_fq_filename ],
-                                                  lstr_cur_products = [discordant_left_fq_filename, discordant_right_fq_filename] ) )
             
         else:
 
@@ -170,12 +182,10 @@ class DISCASM( PipelineRunner.PipelineRunner ):
             discordant_left_fq_filename = os.path.basename(left_fq_filename) + ".extracted.fq"
             discordant_right_fq_filename = os.path.basename(right_fq_filename) + ".extracted.fq"
 
-
-            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
-                                                  lstr_cur_dependencies = [ chimeric_junctions_filename, left_fq_filename, right_fq_filename ],
-                                                  lstr_cur_products = [discordant_left_fq_filename, discordant_right_fq_filename] ) )
+            pipeliner.add_commands([Command(cmdstr, "extract_chimeric_only.ok")])
 
 
+        # in silico normalization
         if args_parsed.normalize_reads and not re.match("trinity", denovo_assembler, re.I):
             # Trinity normalizes by default
             cmdstr = str(os.path.sep.join([TRINITY_HOME, "util", "insilico_read_normalization.pl"]) +
@@ -185,19 +195,14 @@ class DISCASM( PipelineRunner.PipelineRunner ):
 
             normalized_left_fq_filename = discordant_left_fq_filename + ".normalized_K25_C50_pctSD200.fq"
             normalized_right_fq_filename = discordant_right_fq_filename + ".normalized_K25_C50_pctSD200.fq"
-            
-            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
-                                                  lstr_cur_dependencies = [ discordant_left_fq_filename,
-                                                                            discordant_right_fq_filename ],
-                                                  lstr_cur_products = [ normalized_left_fq_filename,
-                                                                        normalized_right_fq_filename ] ) )
 
+            pipeliner.add_commands([Command(cmdstr, "insilinorm.ok")])
+            
             discordant_left_fq_filename = normalized_left_fq_filename
             discordant_right_fq_filename = normalized_right_fq_filename
 
+        #######################################
         ## De novo assemble the extracted reads
-
-        
 
         assembled_transcripts_filename = None
 
@@ -214,12 +219,9 @@ class DISCASM( PipelineRunner.PipelineRunner ):
             
             assembled_transcripts_filename = "trinity_out_dir.Trinity.fasta"
 
-            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
-                                                  lstr_cur_dependencies = [discordant_left_fq_filename, discordant_right_fq_filename],
-                                                  lstr_cur_products = [assembled_transcripts_filename ] ) )
+            pipeliner.add_commands([Command(cmdstr, "trinity_assembly.ok")])
+
             
-
-
         elif re.match("oasesmultik", denovo_assembler, re.I):
             # run Oases multi-K   (Jaffa-style)
             cmdstr = str(UTILDIR + "/run_OASES_multiK.pl --left_fq " + discordant_left_fq_filename +
@@ -229,12 +231,7 @@ class DISCASM( PipelineRunner.PipelineRunner ):
 
             assembled_transcripts_filename = "oasesMultiK_out_dir/oases.transcripts.fa"
 
-            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
-                                                  lstr_cur_dependencies = [discordant_left_fq_filename, discordant_right_fq_filename],
-                                                  lstr_cur_products = [assembled_transcripts_filename] ) )
-
-            
-            
+            pipeliner.add_commands([Command(cmdstr, "oases_multiK_assembly.ok")])
 
         else:
             # oases
@@ -244,14 +241,10 @@ class DISCASM( PipelineRunner.PipelineRunner ):
 
             assembled_transcripts_filename = "oases_out_dir/oases.transcripts.fa"
 
-            lcmd_commands.append(Command.Command( str_cur_command = cmdstr,
-                                                  lstr_cur_dependencies = [discordant_left_fq_filename, discordant_right_fq_filename],
-                                                  lstr_cur_products = [assembled_transcripts_filename] ) )
-        
-
-
-        
-        return lcmd_commands
+            pipeliner.add_commands([Command(cmdstr, "oases_asm.ok")])
+            
+                    
+        pipeliner.run()
 
 
 
@@ -283,5 +276,5 @@ def ensure_locate_progs(assembler_name):
 if __name__ == "__main__":
 
     # Needed to run, calls the script
-    DISCASM().func_run_pipeline()
+    DISCASM().run()
 
