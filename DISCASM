@@ -91,7 +91,7 @@ class DISCASM( PipelineRunner.PipelineRunner ):
         arg_raw.add_argument("--out_dir", dest="str_out_dir", required=True, help="output directory")
         arg_raw.add_argument("--denovo_assembler", dest="denovo_assembler", required=True, help="de novo assembly method: Trinity|Oases|OasesMultiK")
         arg_raw.add_argument("--add_trinity_params", dest="add_trinity_params", required=False, help="any additional parameters to pass on to Trinity if Trinity is the chosen assembler.")
-        arg_raw.add_argument("--normalize_reads", default=False, action='store_true', help='perform in silico normalization prior to de novo assembly')
+        arg_raw.add_argument("--normalize_reads", default=False, action='store_true', help='perform in silico normalization prior to de novo assembly (not needed if using Trinity, since Trinity performs normalization internally')
 
         return(arg_raw)
     
@@ -176,7 +176,8 @@ class DISCASM( PipelineRunner.PipelineRunner ):
                                                   lstr_cur_products = [discordant_left_fq_filename, discordant_right_fq_filename] ) )
 
 
-        if args_parsed.normalize_reads:
+        if args_parsed.normalize_reads and not re.match("trinity", denovo_assembler, re.I):
+            # Trinity normalizes by default
             cmdstr = str(os.path.sep.join([TRINITY_HOME, "util", "insilico_read_normalization.pl"]) +
                          " --left " + discordant_left_fq_filename +
                          " --right " + discordant_right_fq_filename +
