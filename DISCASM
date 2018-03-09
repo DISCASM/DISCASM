@@ -211,7 +211,7 @@ class DISCASM:
             cmdstr = str("Trinity --seqType fq --max_memory 10G " +
                          " --left " + discordant_left_fq_filename +
                          " --right " + discordant_right_fq_filename +
-                         " --CPU 4 --full_cleanup --output trinity_out_dir " +
+                         " --CPU 4 --output trinity_out_dir " +
                          " --min_contig_length 100")
 
             if (args_parsed.add_trinity_params):
