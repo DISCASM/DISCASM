@@ -1,0 +1,62 @@
+<tool id="ctat_discasm" name="ctat_discasm" version="1.0.0" profile="17.05">
+    <description>Discordant and Unmapped Read De novo Transcriptome Assembly</description>
+    <requirements>
+        <requirement type="package" version="0.1.3">discasm</requirement>
+    </requirements>
+    <command detect_errors="default">
+      DISCASM
+      --aligned_bam $bam 
+      --chimeric_junctions $chimeric 
+      --left_fq $left_input
+      --right_fq $right_input
+      --denovo_assembler OasesMultiK 
+      --out_dir "subdir"
+    </command>
+    <stdio>
+      <exit_code range="1:"  level="fatal"   description="Error returned from pipeline" />
+    </stdio>
+    <regex match="Must investigate error above."
+           source="stderr"
+           level="fatal"
+           description="Unknown error encountered" />
+    <inputs>
+      <param format="bam" name="bam" type="data" label="Aligned bam" help="Aligned Bam from Star Fusion tool"/>
+      <param format="tabular" name="chimeric" type="data" label="Chimeric.out.junction" help="Chimeric junction from Star Fusion tool"/>
+      <param format="fastq" name="left_input" type="data" label="Left/Forward strand reads" help="Forward strand reads"/>
+      <param format="fastq" name="right_input" type="data" label="Right/Reverse strand reads" help="Reverse strand reads"/>
+    </inputs>
+    <outputs>
+      <data format="fasta" name="oases.transcripts" label="${tool.name} on ${on_string}: Oasis Transcripts" from_work_dir="subdir/oasesMultiK_out_dir/oases.transcripts.fa" />
+    </outputs>
+
+    <tests>
+      <test>
+        <!-- The aligned and chimeric I got off of the website don't work with these reads_[1|2].fq.gz inputs.
+             These aligned and chimeric were created when I ran the StarFusion test on these inputs.
+        -->
+        <param name="left_input" value="DISCASM/SF2/reads_1.fq.gz" />
+        <param name="right_input" value="DISCASM/SF2/reads_2.fq.gz" />
+        <param name="bam" value="DISCASM/SF2/Aligned.sortedByCoord.out.bam" />
+        <param name="chimeric" value="DISCASM/SF2/Chimeric.out.junction" />
+        <output name="oases.transcripts" file="DISCASM/reads_1_2.oases.transcripts.fa" />
+      </test> 
+      <test>
+        <!-- The Aligned and Chimeric came from a StarFusion test on the reads.[left|right].simPE.fq inputs.
+	-->
+        <param name="left_input" value="DISCASM/SF1/reads.left.simPE.fq" />
+        <param name="right_input" value="DISCASM/SF1/reads.right.simPE.fq" />
+        <param name="bam" value="DISCASM/SF1/SF_out_aligned.bam" />
+        <param name="chimeric" value="DISCASM/SF1/SF_out_chimeric.junction" />
+        <output name="oases.transcripts" file="DISCASM/reads.simPE.oases.transcripts.fa" />
+      </test>
+    </tests>
+    <help>
+.. class:: infomark
+
+DISCASM is a component of the Trinity Cancer Transcriptome Analysis Toolkit (CTAT). DISCASM aims to extract reads that map to reference genomes in a discordant fashion and optionally include reads that do not map to the genome at all, and perform a de novo transcriptome assembly of these reads. DISCASM relies on the output from STAR (as run via STAR-Fusion), and supports de novo transcriptome assembly using Trinity or Oases. Please read more here_.
+
+.. _here: https://github.com/DISCASM/DISCASM/wiki
+    </help>
+    <cite>
+    </cite>
+</tool>
