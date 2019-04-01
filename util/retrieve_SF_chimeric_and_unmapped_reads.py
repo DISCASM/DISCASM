@@ -24,6 +24,8 @@ def main():
 
     want_pairs = set()
     for line in open(chimeric_junction_file):
+        if line[0] == '#':
+            continue
         x = line.split("\t")
         frag_name = x[9]
         want_pairs.add(frag_name)
