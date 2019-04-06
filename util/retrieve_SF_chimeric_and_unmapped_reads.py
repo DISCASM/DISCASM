@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# encoding: utf-8
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 
 import os, sys, re
 import pysam
@@ -21,10 +25,17 @@ MIN_PCT_ALIGNED = float(80)
 
 def main():
 
-
     want_pairs = set()
     for line in open(chimeric_junction_file):
+        
+        if not re.search("\w", line):
+            next
+
+        if line[0] == '#':
+            continue
+
         x = line.split("\t")
+        
         frag_name = x[9]
         want_pairs.add(frag_name)
     

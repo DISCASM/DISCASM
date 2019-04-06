@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# encoding: utf-8
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 
 import os, re, sys
 import argparse
@@ -51,7 +55,7 @@ else:
     try:
         # I tried using "command -v Trinity" but for some reason, I was getting an OS permission error with that.
         # distutils.spawn.find_executable() also might work, I but already implemented the below.
-        pipe1 = subprocess.Popen(["which", "Trinity"], stdout=subprocess.PIPE)
+        pipe1 = subprocess.Popen(["which", "Trinity"], stdout=subprocess.PIPE, universal_newlines=True)
     except:
         sys.stderr.write(TRINITY_HOME_error_msg)
         # t, v, tb = sys.exc_info()
@@ -82,7 +86,7 @@ else:
             # Take off the last part of the path (which is the Trinity command)
             TRINITY_HOME = "/".join(TrinityPath.split("/")[0:-1])
             os.environ['TRINITY_HOME'] = TRINITY_HOME
-            sys.stdout.write("TRINITY_HOME has been set to: {:s}.\n".format(TRINITY_HOME))
+            sys.stdout.write("TRINITY_HOME has been set to: {:s}\n".format(TRINITY_HOME))
         # else: # There was no value returned by the which command. So Trinity is not in the PATH.
         #     Doing nothing leaves TRINITY_HOME as an empty string.
 # end of else no TRINITY_HOME environment variable.
@@ -255,14 +259,14 @@ def ensure_locate_progs(assembler_name):
         progs.append('Trinity')
     elif (re.search("oases", assembler_name, re.I)):
         progs += ['oases', 'velvetg', 'velveth']
-
+ 
     missing_prog = False
     for prog in progs:
         try:
-            path = subprocess.check_output("which " + prog, shell=True)
-            print >>sys.stderr, "Found prog: " + prog + " at path: " + path
+            path = subprocess.check_output("which {}".format(prog), shell=True, universal_newlines=True)
+            print("Found prog: {} at path: {}\n".format(prog, path), file=sys.stderr)
         except Exception as e:
-            print >>sys.stderr, "Error, cannot locate required program: " + prog
+            sys.stderr.write("Error, cannot locate required program: " + prog + "\n")
             missing_prog = True
 
     if missing_prog:
