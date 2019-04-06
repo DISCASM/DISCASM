@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# encoding: utf-8
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 
 import os, sys, re
 import pysam
@@ -23,10 +27,11 @@ def main():
     want_pairs = set()
     for line in open(chimeric_junction_file):
         x = line.split("\t")
+        if len(x) < 10:
+            continue
+        
         frag_name = x[9]
         want_pairs.add(frag_name)
-    
-    
     
 
     left_fq_extracted_filename = os.path.basename(left_fq_filename) + ".extracted.fq"
@@ -43,10 +48,9 @@ def main():
         t.join()
         if not t.success:
             num_failed += 1
-            print >>sys.stderr, "Error extracting reads from file: " + t.input_fq_filename
+            print("Error extracting reads from file: " + t.input_fq_filename, file=sys.stderr)
 
-
-
+    
     sys.exit(num_failed)
     
 
