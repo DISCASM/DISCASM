@@ -232,7 +232,7 @@ class DISCASM:
 
             assembled_transcripts_filename = "discasm.Trinity.fasta"
 
-            pipeliner.add_commands([Command("mv {}.Trinity.fasta {}".format(trinity_out_dir, assembled_transcripts_filename), "trin_fa_rename.ok")])
+            pipeliner.add_commands([Command("mv {}/Trinity.fasta {}".format(trinity_out_dir, assembled_transcripts_filename), "trin_fa_rename.ok")])
             ## cleanup
             pipeliner.add_commands([Command("rm -rf ./discasm.trinity_out_dir/", "trin_cleanup.ok")])
             
