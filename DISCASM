@@ -117,6 +117,7 @@ class DISCASM:
                                 help="any additional parameters to pass on to Trinity if Trinity is the chosen assembler.")
         arg_parser.add_argument("--normalize_reads", default=False, action='store_true',
                                 help='perform in silico normalization prior to de novo assembly (not needed if using Trinity, since Trinity performs normalization internally')
+        arg_parser.add_argument("--CPU", help="number of cores to use", dest="CPU", default=4)
         
         args_parsed = arg_parser.parse_args()
         
@@ -129,6 +130,8 @@ class DISCASM:
         right_fq_filename = os.path.abspath(args_parsed.right_fq_filename)
 
         denovo_assembler = args_parsed.denovo_assembler
+
+        CPU = args_parsed.CPU
 
         if not re.search("(trinity|oases)", denovo_assembler, re.I):
             raise Exception("Error, assembler: " + denovo_assembler +
@@ -212,19 +215,27 @@ class DISCASM:
 
         if re.match("trinity", denovo_assembler, re.I):
 
+            trinity_out_dir = "discasm.trinity_out_dir"
+            
             cmdstr = str("Trinity --seqType fq --max_memory 10G " +
                          " --left " + discordant_left_fq_filename +
                          " --right " + discordant_right_fq_filename +
-                         " --CPU 4 --output trinity_out_dir " +
+                         " --CPU {} ".format(CPU) +
+                         " --output {} ".format(trinity_out_dir) +
                          " --min_contig_length 100")
 
             if (args_parsed.add_trinity_params):
                 cmdstr += " " + args_parsed.add_trinity_params
             
-            assembled_transcripts_filename = "trinity_out_dir.Trinity.fasta"
-
+            
             pipeliner.add_commands([Command(cmdstr, "trinity_assembly.ok")])
 
+            assembled_transcripts_filename = "discasm.Trinity.fasta"
+
+            pipeliner.add_commands([Command("mv {}.Trinity.fasta {}".format(trinity_out_dir, assembled_transcripts_filename), "trin_fa_rename.ok")])
+            ## cleanup
+            pipeliner.add_commands([Command("rm -rf ./discasm.trinity_out_dir/", "trin_cleanup.ok")])
+            
             
         elif re.match("oasesmultik", denovo_assembler, re.I):
             # run Oases multi-K   (Jaffa-style)
