@@ -84,11 +84,14 @@ class Unkept_read_fq_extractor (threading.Thread):
             read_name = fq_entry.name
             read_name = re.sub("/[12]$", "", read_name)
             if read_name in self.keep_set:
-                ofh.write( "\n".join(["@" + fq_entry.name,
-                                      fq_entry.sequence,
-                                      "+",
-                                      fq_entry.quality]
-                                     ) + "\n")
+
+                ofh.write(str(fq_entry))
+                
+                #ofh.write( "\n".join(["@" + fq_entry.name,
+                #                      fq_entry.sequence,
+                #                      "+",
+                #                      fq_entry.quality]
+                #                     ) + "\n")
         
         ofh.close()
 
