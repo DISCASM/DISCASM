@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-
 import os, sys, re
 import pysam
 import threading
@@ -11,7 +8,7 @@ import threading
 usage = "\n\n\tusage: " + sys.argv[0] + " alignments.bam Chimeric.out.junction left.fq right.fq\n\n"
 
 if len(sys.argv) < 5:
-    print >>sys.stderr, usage
+    print(usage, file=sys.stderr)
     sys.exit(1)
 
 
